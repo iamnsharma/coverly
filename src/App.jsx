@@ -13,6 +13,7 @@ import {
   clearStoredKey,
 } from "./utils/apiKeyStorage.js";
 import geminiBadge from "./assets/gemini.webp";
+import { TEMPLATE_LIST, TEMPLATE_REGISTRY } from "./templates/templates.jsx";
 
 const createId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -38,7 +39,7 @@ const createEducation = () => ({
   details: "",
 });
 
-const DEFAULT_FORM = {
+const createDefaultForm = () => ({
   name: "",
   headline: "",
   email: "",
@@ -56,6 +57,57 @@ const DEFAULT_FORM = {
   details: "",
   experiences: [createExperience()],
   education: [createEducation()],
+});
+
+const createDevForm = () => {
+  const form = createDefaultForm();
+  form.name = "Avery Johnson";
+  form.headline = "Product Strategy Lead";
+  form.email = "avery.johnson@email.com";
+  form.phone = "+1 555 321 4567";
+  form.location = "Austin, TX";
+  form.portfolio = "https://portfolio.averyjohnson.com";
+  form.linkedin = "https://linkedin.com/in/averyjohnson";
+  form.targetRole = "Director of Product";
+  form.experienceYears = "8";
+  form.skills = "Product Strategy, Customer Discovery, Roadmapping, Analytics";
+  form.softSkills = "Stakeholder Alignment, Coaching, Public Speaking";
+  form.certifications = "Pragmatic Certified Product Manager";
+  form.projects = "Built experimentation playbook adopted by 9 teams.";
+  form.details = "Passionate about shipping delightful experiences faster.";
+  form.experiences = [
+    {
+      ...createExperience(),
+      role: "Product Lead",
+      company: "Brightwave",
+      location: "Austin, TX",
+      startDate: "2020",
+      endDate: "Present",
+      highlights: `Scaled product discovery practice, tripling validated ideas.
+Launched onboarding revamp reducing time-to-value by 46%.`,
+    },
+    {
+      ...createExperience(),
+      role: "Senior Product Manager",
+      company: "FlowPath",
+      location: "Remote",
+      startDate: "2016",
+      endDate: "2020",
+      highlights: `Delivered analytics module generating $4.2M ARR in year one.
+Mentored 4 PMs and introduced OKR ritual improving focus.`,
+    },
+  ];
+  form.education = [
+    {
+      ...createEducation(),
+      degree: "MBA, Innovation Management",
+      institution: "University of Texas",
+      startDate: "2014",
+      endDate: "2016",
+      details: "Graduated with honors, VP of Product Club.",
+    },
+  ];
+  return form;
 };
 
 const extractJson = (text) => {
@@ -69,7 +121,7 @@ const extractJson = (text) => {
 
 const App = () => {
   const [selectedOption, setSelectedOption] = useState("Resume");
-  const [formData, setFormData] = useState(DEFAULT_FORM);
+  const [formData, setFormData] = useState(createDefaultForm);
   const [output, setOutput] = useState("");
   const [resumeData, setResumeData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +131,13 @@ const App = () => {
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [showApiKeyPanel, setShowApiKeyPanel] = useState(false);
   const [hasGeneratedPdf, setHasGeneratedPdf] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("default");
+  const [previewTemplateId, setPreviewTemplateId] = useState(null);
+
+  const selectedTemplate = TEMPLATE_REGISTRY[selectedTemplateId] ?? TEMPLATE_REGISTRY.default;
+  const previewTemplate = previewTemplateId
+    ? TEMPLATE_REGISTRY[previewTemplateId]
+    : null;
 
   useEffect(() => {
     const loadApiKey = async () => {
@@ -252,6 +311,7 @@ ${educationBlock}
   }, [formData, selectedOption]);
 
   const handleFieldChange = useCallback((field, value) => {
+    setHasGeneratedPdf(false);
     setFormData((current) => ({
       ...current,
       [field]: value,
@@ -259,6 +319,7 @@ ${educationBlock}
   }, []);
 
   const handleExperienceChange = useCallback((id, field, value) => {
+    setHasGeneratedPdf(false);
     setFormData((current) => ({
       ...current,
       experiences: current.experiences.map((experience) =>
@@ -268,6 +329,7 @@ ${educationBlock}
   }, []);
 
   const handleAddExperience = useCallback(() => {
+    setHasGeneratedPdf(false);
     setFormData((current) => ({
       ...current,
       experiences: [...current.experiences, createExperience()],
@@ -275,6 +337,7 @@ ${educationBlock}
   }, []);
 
   const handleRemoveExperience = useCallback((id) => {
+    setHasGeneratedPdf(false);
     setFormData((current) => {
       if (current.experiences.length === 1) return current;
       return {
@@ -287,6 +350,7 @@ ${educationBlock}
   }, []);
 
   const handleEducationChange = useCallback((id, field, value) => {
+    setHasGeneratedPdf(false);
     setFormData((current) => ({
       ...current,
       education: current.education.map((program) =>
@@ -296,6 +360,7 @@ ${educationBlock}
   }, []);
 
   const handleAddEducation = useCallback(() => {
+    setHasGeneratedPdf(false);
     setFormData((current) => ({
       ...current,
       education: [...current.education, createEducation()],
@@ -303,6 +368,7 @@ ${educationBlock}
   }, []);
 
   const handleRemoveEducation = useCallback((id) => {
+    setHasGeneratedPdf(false);
     setFormData((current) => {
       if (current.education.length === 1) return current;
       return {
@@ -310,6 +376,16 @@ ${educationBlock}
         education: current.education.filter((program) => program.id !== id),
       };
     });
+  }, []);
+
+  const handleLoadDevData = useCallback(() => {
+    setSelectedOption("Resume");
+    setFormData(createDevForm());
+    setOutput("");
+    setResumeData(null);
+    setStatusMessage("Loaded sample data for quick testing.");
+    setError("");
+    setHasGeneratedPdf(false);
   }, []);
 
   const handleGenerate = useCallback(async () => {
@@ -426,157 +502,22 @@ ${educationBlock}
     setOutput("");
     setResumeData(null);
     setStatusMessage("Cleared the output.");
+    setHasGeneratedPdf(false);
   }, []);
 
   const handleDownload = useCallback(() => {
     if (selectedOption === "Resume") {
       if (!resumeData) return;
 
-      const doc = new jsPDF({
-        unit: "pt",
-        format: "a4",
-      });
-
-      const marginX = 48;
-      let cursorY = 60;
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const maxWidth = doc.internal.pageSize.getWidth() - marginX * 2;
-
-      const addTextBlock = (text, options = {}) => {
-        const { fontSize = 11, fontStyle = "normal", marginTop = 14 } = options;
-        doc.setFont("helvetica", fontStyle);
-        doc.setFontSize(fontSize);
-        const lines = doc.splitTextToSize(text, maxWidth);
-        lines.forEach((line) => {
-          if (cursorY > pageHeight - marginX) {
-            doc.addPage();
-            cursorY = marginX;
-          }
-          doc.text(line, marginX, cursorY);
-          cursorY += fontSize + 4;
-        });
-        cursorY += marginTop;
-      };
-
-      const { contact, summary, experience, education, skills, certifications, projects } =
-        resumeData;
-
-      addTextBlock(
-        `${contact?.name ?? ""}`,
-        { fontSize: 20, fontStyle: "bold", marginTop: 6 }
-      );
-      addTextBlock(`${contact?.headline ?? ""}`, { fontSize: 12, marginTop: 2 });
-
-      const contactLine = [
-        contact?.location,
-        contact?.email,
-        contact?.phone,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      if (contactLine) {
-        addTextBlock(contactLine, { fontSize: 10, marginTop: 2 });
-      }
-      if (Array.isArray(contact?.links) && contact.links.length > 0) {
-        addTextBlock(contact.links.join(" · "), { fontSize: 10, marginTop: 2 });
-      }
-
-      if (summary) {
-        addTextBlock("PROFILE", { fontSize: 12, fontStyle: "bold", marginTop: 8 });
-        addTextBlock(summary, { fontSize: 11, marginTop: 4 });
-      }
-
-      if (Array.isArray(experience) && experience.length > 0) {
-        addTextBlock("EXPERIENCE", {
-          fontSize: 12,
-          fontStyle: "bold",
-          marginTop: 8,
-        });
-        experience.forEach((item) => {
-          const header = `${item.role ?? ""} · ${item.company ?? ""}`;
-          addTextBlock(header, { fontSize: 11, fontStyle: "bold", marginTop: 4 });
-          const meta = [item.location, `${item.start ?? ""} – ${item.end ?? ""}`]
-            .filter(Boolean)
-            .join(" · ");
-          if (meta) {
-            addTextBlock(meta, { fontSize: 10, marginTop: 2 });
-          }
-          if (Array.isArray(item.bullets)) {
-            item.bullets.forEach((bullet) => {
-              addTextBlock(`• ${bullet}`, { fontSize: 11, marginTop: 2 });
-            });
-          }
-          cursorY += 6;
-        });
-      }
-
-      if (Array.isArray(education) && education.length > 0) {
-        addTextBlock("EDUCATION", {
-          fontSize: 12,
-          fontStyle: "bold",
-          marginTop: 8,
-        });
-        education.forEach((item) => {
-          addTextBlock(
-            `${item.degree ?? ""} · ${item.institution ?? ""}`,
-            { fontSize: 11, fontStyle: "bold", marginTop: 4 }
-          );
-          const meta = [item.start, item.end].filter(Boolean).join(" – ");
-          if (meta) {
-            addTextBlock(meta, { fontSize: 10, marginTop: 2 });
-          }
-          if (item.details) {
-            addTextBlock(item.details, { fontSize: 11, marginTop: 2 });
-          }
-          cursorY += 6;
-        });
-      }
-
-      if (skills) {
-        addTextBlock("SKILLS", {
-          fontSize: 12,
-          fontStyle: "bold",
-          marginTop: 8,
-        });
-        if (skills.core?.length) {
-          addTextBlock(`Core: ${skills.core.join(", ")}`, {
-            fontSize: 11,
-            marginTop: 2,
-          });
-        }
-        if (skills.soft?.length) {
-          addTextBlock(`Soft: ${skills.soft.join(", ")}`, {
-            fontSize: 11,
-            marginTop: 2,
-          });
-        }
-      }
-
-      if (Array.isArray(certifications) && certifications.length > 0) {
-        addTextBlock("CERTIFICATIONS", {
-          fontSize: 12,
-          fontStyle: "bold",
-          marginTop: 8,
-        });
-        certifications.forEach((cert) => {
-          addTextBlock(`• ${cert}`, { fontSize: 11, marginTop: 2 });
-        });
-      }
-
-      if (Array.isArray(projects) && projects.length > 0) {
-        addTextBlock("PROJECTS", {
-          fontSize: 12,
-          fontStyle: "bold",
-          marginTop: 8,
-        });
-        projects.forEach((project) => {
-          addTextBlock(`• ${project}`, { fontSize: 11, marginTop: 2 });
-        });
-      }
-
-      doc.save("coverly-resume.pdf");
+      const doc = selectedTemplate.pdf(resumeData);
+      const fileName = `coverly-${selectedTemplate.id}.pdf`;
+      doc.save(fileName);
       setStatusMessage("Resume PDF downloaded.");
-      setHasGeneratedPdf(true);
+      setHasGeneratedPdf(false);
+      setResumeData(null);
+      setOutput("");
+      setFormData(createDefaultForm());
+      setError("");
       return;
     }
 
@@ -610,8 +551,12 @@ ${educationBlock}
     const sanitizedOption = selectedOption.toLowerCase().replace(/\s+/g, "-");
     doc.save(`coverly-${sanitizedOption}.pdf`);
     setStatusMessage("PDF downloaded.");
-    setHasGeneratedPdf(true);
-  }, [output, resumeData, selectedOption]);
+    setHasGeneratedPdf(false);
+    setOutput("");
+    setResumeData(null);
+    setFormData(createDefaultForm());
+    setError("");
+  }, [output, resumeData, selectedOption, selectedTemplate]);
 
   return (
     <div className="relative min-h-screen w-full px-4 py-12 md:px-8">
@@ -625,10 +570,88 @@ ${educationBlock}
 
         <section className="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
           <div className="flex flex-col gap-8">
-            <OptionSelector
-              selectedOption={selectedOption}
-              onSelect={setSelectedOption}
-            />
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex-1 min-w-[240px]">
+                <OptionSelector
+                  selectedOption={selectedOption}
+                  onSelect={setSelectedOption}
+                />
+              </div>
+              {/* <button
+                type="button"
+                onClick={handleLoadDevData}
+                className="rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors duration-200 hover:border-primary hover:bg-primary/20"
+              >
+                Dev mode: Prefill sample data
+              </button> */}
+            </div>
+
+            <section className="space-y-4 rounded-3xl border border-gray-100 bg-white/80 p-5 shadow-lg shadow-gray-200/40 backdrop-blur-md">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Resume style</h3>
+                  <p className="text-sm text-gray-500">
+                    Choose the template you want Coverly to populate.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {TEMPLATE_LIST.map((template) => {
+                  const isActive = template.id === selectedTemplateId;
+                  return (
+                    <div
+                      key={template.id}
+                      className={`group relative overflow-hidden rounded-2xl border transition-all duration-300 ${
+                        isActive
+                          ? "border-primary shadow-lg shadow-primary/20"
+                          : "border-gray-200 hover:border-primary/40 hover:shadow"
+                      }`}
+                    >
+                      <div className="relative h-56 w-full overflow-hidden bg-slate-100">
+                        <div
+                          className="pointer-events-none origin-top-left scale-[0.32]"
+                          style={{ width: "620px" }}
+                        >
+                          <template.Illustration resume={template.sampleData} />
+                        </div>
+                        <div className="pointer-events-none absolute inset-0 rounded-2xl border border-black/5 bg-gradient-to-t from-black/10 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 px-4 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {template.name}
+                          </p>
+                          <p className="text-xs text-gray-500">{template.description}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTemplateId(template.id);
+                              setHasGeneratedPdf(false);
+                            }}
+                            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                              isActive
+                                ? "bg-primary text-white"
+                                : "border border-gray-200 text-gray-600 hover:border-primary hover:text-primary"
+                            }`}
+                          >
+                            {isActive ? "Selected" : "Use"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewTemplateId(template.id)}
+                            className="text-xs font-semibold text-primary/80 underline-offset-4 transition-colors hover:text-primary hover:underline"
+                          >
+                            Preview
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
 
             <InputArea
               formData={formData}
@@ -664,12 +687,68 @@ ${educationBlock}
             output={output}
             resumeData={resumeData}
             selectedOption={selectedOption}
+            selectedTemplate={selectedTemplate}
             onCopy={handleCopy}
             onClear={handleClear}
             onDownload={handleDownload}
           />
         </section>
       </main>
+
+      {previewTemplate && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setPreviewTemplateId(null)}
+        >
+          <div
+            className="relative max-h-[85vh] w-full max-w-5xl overflow-hidden rounded-3xl border border-white/40 bg-white/95 p-6 shadow-2xl shadow-primary/30 backdrop-blur"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {previewTemplate.name}
+                </h3>
+                <p className="text-sm text-gray-500">{previewTemplate.description}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewTemplateId(null)}
+                aria-label="Close template preview"
+                className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[auto_220px]">
+              <div className="max-h-[70vh] overflow-auto rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                <div className="mx-auto w-[620px]">
+                  <previewTemplate.Illustration resume={previewTemplate.sampleData} />
+                </div>
+              </div>
+              <div className="flex flex-col justify-between gap-4">
+                <div className="rounded-2xl bg-white/90 p-4 shadow">
+                  <p className="text-sm text-gray-600">
+                    This preview uses sample content. When you generate with Coverly, we’ll
+                    pour your details into this layout automatically.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTemplateId(previewTemplate.id);
+                    setHasGeneratedPdf(false);
+                    setPreviewTemplateId(null);
+                  }}
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-emerald-500"
+                >
+                  Use this template
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="mt-16 text-center text-sm text-gray-500">
         Made with ❤️ by Aman Sharma.
@@ -687,7 +766,7 @@ ${educationBlock}
           alt="Gemini badge"
           className="h-10 w-10 animate-pulse"
         />
-      </button>
+        </button>
 
       {showApiKeyPanel && (
         <div

@@ -4,7 +4,7 @@ const Loader = () => (
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
       <span className="relative inline-flex h-4 w-4 rounded-full bg-primary" />
     </span>
-    <span className="text-sm font-medium">Coverly is crafting your text…</span>
+    <span className="text-sm font-medium">Coverly is crafting your resume…</span>
   </div>
 );
 

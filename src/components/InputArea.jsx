@@ -536,7 +536,7 @@ const InputArea = ({
           disabled={isDisabled || isLoading}
           className="rounded-2xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-soft transition-transform duration-200 hover:-translate-y-0.5 hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-primary/50"
         >
-          {isLoading ? "Generating..." : disableGenerate ? "PDF already downloaded" : "Generate with AI ✨"}
+          {isLoading ? "Generating..." : disableGenerate ? "Resume already generated" : "Generate with AI ✨"}
         </button>
       </div>
     </form>

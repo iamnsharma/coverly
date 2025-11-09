@@ -1,22 +1,8 @@
-const SectionHeading = ({ children }) => (
-  <h3 className="text-base font-semibold uppercase tracking-wide text-gray-500">
-    {children}
-  </h3>
-);
-
-const ResumeSection = ({ title, children }) => (
-  <div className="space-y-3">
-    <SectionHeading>{title}</SectionHeading>
-    <div className="space-y-3 text-sm leading-relaxed text-gray-700">
-      {children}
-    </div>
-  </div>
-);
-
 const OutputBox = ({
   output,
   resumeData,
   selectedOption,
+  selectedTemplate,
   onCopy,
   onClear,
   onDownload,
@@ -24,6 +10,7 @@ const OutputBox = ({
   const hasResume = selectedOption === "Resume" && Boolean(resumeData);
   const hasOutputText = Boolean(output.trim());
   const hasOutput = hasResume || hasOutputText;
+  const Illustration = selectedTemplate?.Illustration;
 
   return (
     <section className="flex h-[720px] flex-col gap-4 rounded-3xl border border-gray-100 bg-white/90 p-6 shadow-lg shadow-gray-200/30 backdrop-blur-md md:p-8">
@@ -72,144 +59,19 @@ const OutputBox = ({
             </p>
           </div>
         )}
-        {hasResume && resumeData && (
-          <div className="flex h-full flex-col gap-6 overflow-y-auto px-5 py-4 pr-6">
-            <header className="border-b border-gray-200 pb-4">
-              <h1 className="text-2xl font-semibold text-gray-900">
-                {resumeData.contact?.name ?? "Candidate Name"}
-              </h1>
-              <p className="text-sm text-gray-600">
-                {resumeData.contact?.headline ?? selectedOption}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-gray-500">
-                {[resumeData.contact?.location, resumeData.contact?.email, resumeData.contact?.phone]
-                  .filter(Boolean)
-                  .map((item) => (
-                    <span key={item}>{item}</span>
-                  ))}
-              </div>
-              {Array.isArray(resumeData.contact?.links) &&
-                resumeData.contact.links.length > 0 && (
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-primary">
-                    {resumeData.contact.links.filter(Boolean).map((link) => (
-                      <a
-                        key={link}
-                        href={link}
-                        className="hover:underline"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {link}
-                      </a>
-                    ))}
-                  </div>
-                )}
-            </header>
-
-            {resumeData.summary && (
-              <ResumeSection title="Profile">
-                <p>{resumeData.summary}</p>
-              </ResumeSection>
-            )}
-
-            {Array.isArray(resumeData.experience) &&
-              resumeData.experience.length > 0 && (
-                <ResumeSection title="Professional Experience">
-                  {resumeData.experience.map((item, index) => (
-                    <div
-                      key={`${item.company}-${index}`}
-                      className="space-y-1 rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
-                    >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {item.role ?? "Role"} · {item.company ?? "Company"}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {[item.location, `${item.start ?? ""} - ${item.end ?? ""}`]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </p>
-                        </div>
-                      </div>
-                      <ul className="mt-2 space-y-1 text-sm text-gray-700">
-                        {Array.isArray(item.bullets) &&
-                          item.bullets.map((bullet, bulletIndex) => (
-                            <li key={`bullet-${index}-${bulletIndex}`} className="flex gap-2">
-                              <span className="text-primary">•</span>
-                              <span>{bullet}</span>
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                  ))}
-                </ResumeSection>
-              )}
-
-            {Array.isArray(resumeData.education) &&
-              resumeData.education.length > 0 && (
-                <ResumeSection title="Education">
-                  {resumeData.education.map((item, index) => (
-                    <div key={`${item.institution}-${index}`} className="space-y-1">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {item.degree ?? "Degree"} · {item.institution ?? "Institution"}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {[item.start, item.end].filter(Boolean).join(" – ")}
-                      </p>
-                      {item.details && (
-                        <p className="text-sm text-gray-700">{item.details}</p>
-                      )}
-                    </div>
-                  ))}
-                </ResumeSection>
-              )}
-
-            {(resumeData.skills?.core?.length ||
-              resumeData.skills?.soft?.length) && (
-              <ResumeSection title="Skills">
-                {resumeData.skills?.core?.length && (
-                  <p>
-                    <span className="font-semibold text-gray-800">Core:</span>{" "}
-                    {resumeData.skills.core.join(", ")}
-                  </p>
-                )}
-                {resumeData.skills?.soft?.length && (
-                  <p>
-                    <span className="font-semibold text-gray-800">Soft:</span>{" "}
-                    {resumeData.skills.soft.join(", ")}
-                  </p>
-                )}
-              </ResumeSection>
-            )}
-
-            {Array.isArray(resumeData.certifications) &&
-              resumeData.certifications.length > 0 && (
-                <ResumeSection title="Certifications">
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    {resumeData.certifications.map((certification, index) => (
-                      <li key={`cert-${index}`} className="flex gap-2">
-                        <span className="text-primary">•</span>
-                        <span>{certification}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </ResumeSection>
-              )}
-
-            {Array.isArray(resumeData.projects) &&
-              resumeData.projects.length > 0 && (
-                <ResumeSection title="Projects">
-                  <ul className="space-y-1 text-sm text-gray-700">
-                    {resumeData.projects.map((project, index) => (
-                      <li key={`project-${index}`} className="flex gap-2">
-                        <span className="text-primary">•</span>
-                        <span>{project}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </ResumeSection>
-              )}
+        {hasResume && resumeData && Illustration && (
+          <div className="flex h-full w-full justify-center overflow-auto bg-gray-50 p-4">
+            <div
+              className="pointer-events-none origin-top"
+              style={{
+                width: "620px",
+                minWidth: "620px",
+                transform: "scale(0.78)",
+                transformOrigin: "top center",
+              }}
+            >
+              <Illustration resume={resumeData} />
+            </div>
           </div>
         )}
 
