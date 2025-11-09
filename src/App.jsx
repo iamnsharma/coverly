@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 
 import Header from "./components/Header.jsx";
@@ -7,6 +7,12 @@ import Loader from "./components/Loader.jsx";
 import OptionSelector from "./components/OptionSelector.jsx";
 import OutputBox from "./components/OutputBox.jsx";
 import generateText from "./utils/generateText.js";
+import {
+  loadDecryptedKey,
+  saveEncryptedKey,
+  clearStoredKey,
+} from "./utils/apiKeyStorage.js";
+import geminiBadge from "./assets/gemini.webp";
 
 const createId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -52,6 +58,15 @@ const DEFAULT_FORM = {
   education: [createEducation()],
 };
 
+const extractJson = (text) => {
+  if (!text) return "";
+  const cleaned = text.trim().replace(/```json|```/gi, "");
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace === -1 || lastBrace === -1) return cleaned;
+  return cleaned.slice(firstBrace, lastBrace + 1);
+};
+
 const App = () => {
   const [selectedOption, setSelectedOption] = useState("Resume");
   const [formData, setFormData] = useState(DEFAULT_FORM);
@@ -60,6 +75,49 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [hasCustomApiKey, setHasCustomApiKey] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showApiKeyPanel, setShowApiKeyPanel] = useState(false);
+  const [hasGeneratedPdf, setHasGeneratedPdf] = useState(false);
+
+  useEffect(() => {
+    const loadApiKey = async () => {
+      const key = await loadDecryptedKey();
+      setHasCustomApiKey(Boolean(key));
+    };
+    loadApiKey();
+  }, []);
+
+  const handleSaveApiKey = useCallback(async () => {
+    const trimmed = apiKeyInput.trim();
+    if (!trimmed) {
+      setError("Please paste a Gemini API key before saving.");
+      return;
+    }
+    try {
+      await saveEncryptedKey(trimmed);
+      setHasCustomApiKey(true);
+      setApiKeyInput("");
+      setError("");
+      setStatusMessage("Custom Gemini API key saved locally.");
+      setShowApiKeyPanel(false);
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Unable to store the API key. Please try again."
+      );
+    }
+  }, [apiKeyInput]);
+
+  const handleRemoveApiKey = useCallback(async () => {
+    clearStoredKey();
+    setHasCustomApiKey(false);
+    setApiKeyInput("");
+    setError("");
+    setStatusMessage("Custom Gemini API key removed.");
+    setHasGeneratedPdf(false);
+  }, []);
 
   const prompt = useMemo(() => {
     if (selectedOption === "Resume") {
@@ -258,11 +316,12 @@ ${educationBlock}
     setIsLoading(true);
     setError("");
     setStatusMessage("");
+    setHasGeneratedPdf(false);
 
     try {
       const aiText = await generateText(prompt);
       if (selectedOption === "Resume") {
-        const jsonString = aiText.trim().replace(/```json|```/gi, "");
+        const jsonString = extractJson(aiText);
         try {
           const parsed = JSON.parse(jsonString);
           setResumeData(parsed);
@@ -517,6 +576,7 @@ ${educationBlock}
 
       doc.save("coverly-resume.pdf");
       setStatusMessage("Resume PDF downloaded.");
+      setHasGeneratedPdf(true);
       return;
     }
 
@@ -550,10 +610,16 @@ ${educationBlock}
     const sanitizedOption = selectedOption.toLowerCase().replace(/\s+/g, "-");
     doc.save(`coverly-${sanitizedOption}.pdf`);
     setStatusMessage("PDF downloaded.");
+    setHasGeneratedPdf(true);
   }, [output, resumeData, selectedOption]);
 
   return (
-    <div className="min-h-screen w-full px-4 py-12 md:px-8">
+    <div className="relative min-h-screen w-full px-4 py-12 md:px-8">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur">
+          <Loader />
+        </div>
+      )}
       <main className="mx-auto flex max-w-6xl flex-col gap-10">
         <Header />
 
@@ -575,6 +641,7 @@ ${educationBlock}
               onRemoveEducation={handleRemoveEducation}
               onGenerate={handleGenerate}
               isLoading={isLoading}
+              disableGenerate={hasGeneratedPdf}
               selectedOption={selectedOption}
             />
 
@@ -607,6 +674,106 @@ ${educationBlock}
       <footer className="mt-16 text-center text-sm text-gray-500">
         Made with ❤️ by Aman Sharma.
       </footer>
+
+      {/* Gemini key launcher */}
+      <button
+        type="button"
+        onClick={() => setShowApiKeyPanel((prev) => !prev)}
+        className="fixed bottom-6 right-6 z-40 flex h-16 w-16 items-center justify-center rounded-full border border-primary/40 bg-white/80 shadow-xl shadow-primary/20 backdrop-blur hover:-translate-y-1 hover:border-primary hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        aria-label="Manage Gemini API key"
+      >
+        <img
+          src={geminiBadge}
+          alt="Gemini badge"
+          className="h-10 w-10 animate-pulse"
+        />
+      </button>
+
+      {showApiKeyPanel && (
+        <div
+          className="fixed inset-0 z-30 flex items-end justify-end bg-black/20 p-4 sm:items-center sm:p-6"
+          onClick={() => setShowApiKeyPanel(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-gray-100 bg-white/95 p-6 shadow-2xl shadow-primary/20 backdrop-blur"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Gemini API Key
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Paste your own key to avoid shared rate limits. Keys are encrypted and stay on this device.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowApiKeyPanel(false)}
+                aria-label="Close Gemini key panel"
+                className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors duration-200 hover:border-gray-300 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(event) => setApiKeyInput(event.target.value)}
+                placeholder={
+                  hasCustomApiKey
+                    ? "Paste a new Gemini key to replace the current one"
+                    : "Paste your Gemini API key (AI... )"
+                }
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 transition-all duration-200 focus:border-primary focus:shadow-soft focus:outline-none"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveApiKey}
+                  disabled={!apiKeyInput.trim()}
+                  className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors duration-200 hover:border-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  Save Key
+                </button>
+                {hasCustomApiKey && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveApiKey}
+                    className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-500 transition-colors duration-200 hover:border-red-300 hover:text-red-500"
+                  >
+                    Remove Key
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApiKeyInput("");
+                    setError("");
+                    setStatusMessage("");
+                  }}
+                  className="ml-auto text-xs font-semibold text-gray-400 transition-colors duration-200 hover:text-gray-600"
+                >
+                  Clear field
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                <span>Need a key?</span>
+                <a
+                  href="https://aistudio.google.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1 font-semibold text-primary transition-colors duration-200 hover:border-primary hover:bg-primary/10"
+                >
+                  Generate at Google AI Studio ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
   );
 };

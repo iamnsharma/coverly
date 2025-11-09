@@ -9,7 +9,10 @@ Coverly is a frontend-only React + Vite application that helps professionals cre
 - **AI-Powered Resume Generation** – Collects detailed contact, experience, education, and skills data and asks Gemini to return a fully structured resume (JSON).
 - **Dynamic Resume Preview** – Renders the AI output into a modern layout with fixed-height preview and scrollable sections.
 - **Cover Letter Mode** – Switch to cover-letter prompts whenever you just need a quick introduction mailer.
-- **PDF Export** – Download resumes or cover letters immediately via jsPDF.
+- **PDF Export with Safety Lock** – Downloads resumes or cover letters immediately via jsPDF and automatically disables the generator until a new draft is requested.
+- **Floating Gemini Key Manager** – Animated Gemini badge opens a panel to save, replace, or remove personal API keys (encrypted in local storage) and links directly to Google AI Studio.
+- **Full-Page Generation Overlay** – While Gemini is composing content, a glassmorphism overlay and loader block user interaction to prevent conflicting edits.
+- **Resilient JSON Parsing** – Smart extraction protects against fenced / prefixed AI replies and surfaces helpful errors when Gemini deviates from the schema.
 - **Client-Side Only** – No server required; supply your own API key and go.
 
 ---

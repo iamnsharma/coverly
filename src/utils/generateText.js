@@ -1,3 +1,5 @@
+import { loadDecryptedKey } from "./apiKeyStorage.js";
+
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_MODEL = "gemini-1.5-flash-latest";
 
@@ -36,7 +38,8 @@ const extractGeminiResponse = (data) => {
 };
 
 const generateText = async (prompt) => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const storedKey = await loadDecryptedKey();
+  const apiKey = storedKey || import.meta.env.VITE_GEMINI_API_KEY;
   const model =
     import.meta.env.VITE_GEMINI_MODEL && import.meta.env.VITE_GEMINI_MODEL.trim().length > 0
       ? import.meta.env.VITE_GEMINI_MODEL.trim()
